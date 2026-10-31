@@ -72,8 +72,6 @@ The Lambda handlers use plain Java rather than an application framework.
 
 ## 3. Implemented Features
 
----
-
 ### Core Functionality
 
 - [x] Validate `requesterId`, `requestType`, and `priority` for submissions.
@@ -98,8 +96,6 @@ The Lambda handlers use plain Java rather than an application framework.
 - [ ] Implement automated tests, CI/CD, distributed tracing, and operational alarms.
 
 ## 4. Solution Architecture
-
----
 
 ### Architecture Diagram
 
@@ -159,8 +155,6 @@ flowchart LR
 
 ## 5. Key Architecture & Engineering Decisions
 
----
-
 | Decision | Rationale / Trade-off |
 |----------|------------------------|
 | **EventBridge for event routing** | Separates request submission from processing and supports rule-based filtering; introduces eventual consistency and potential duplicate delivery. There is no intermediary buffering queue between EventBridge and the processor. |
@@ -183,8 +177,6 @@ flowchart LR
 - **Result:** Completed requests can be skipped and failed invocations retained for inspection. The state check is **not atomic idempotency**; redrive and state recovery remain manual.
 
 ## 6. Security, Reliability & Observability
-
----
 
 ### Security
 
@@ -219,8 +211,6 @@ sam logs --name ProcessRequestFunction `
 - **Cost:** Cloud cost estimates and measured operating costs are **[TO CONFIRM]**.
 
 ## 7. API / Interface Documentation
-
----
 
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
@@ -275,8 +265,6 @@ Supported `requestType` values: `STANDARD`, `EXPRESS`. Supported `priority` valu
 
 ## 8. Getting Started
 
----
-
 ### Prerequisites
 
 - Java 25 and Maven (or the included Maven Wrapper).
@@ -323,7 +311,6 @@ aws cloudformation describe-stacks `
 These are documented deployment instructions; a deployment execution record was not provided.
 
 ## 9. Testing & Validation
----
 
 ### Testing Approach
 
@@ -350,8 +337,6 @@ The entries below are **documented expected behaviors, not independently verifie
 
 ## 10. Demonstration & Results
 
----
-
 ### Screenshots / Demo
 
 Live demo, screenshots, and recorded validation artifacts are **[TO CONFIRM]**. The documented demonstration scenarios are request submission, asynchronous status retrieval, priority-based results, and synthetic failure/DLQ inspection.
@@ -366,8 +351,6 @@ Live demo, screenshots, and recorded validation artifacts are **[TO CONFIRM]**. 
 These capabilities are described in the supplied project README; source code, deployment records, and independently verified execution evidence were not supplied. No production deployment or quantified business benefit is claimed.
 
 ## 11. Repository Structure
-
----
 
 ```text
 event-driven-request-processing/
