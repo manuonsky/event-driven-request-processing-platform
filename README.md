@@ -327,7 +327,6 @@ aws cloudformation describe-stacks `
 These are documented deployment instructions; a deployment execution record was not provided.
 
 ## 9. Testing & Validation
-
 ---
 
 ### Testing Approach
