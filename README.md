@@ -13,8 +13,6 @@
 
 ## 1. Overview
 
----
-
 This project explores how to decouple HTTP request acceptance from background processing using AWS-managed services. An API Gateway HTTP API invokes Java Lambda functions to persist service requests in DynamoDB, publish `RequestCreated` events to EventBridge, and retrieve current request state. A separate Lambda processes routed events and stores a priority-based result. The deliberately simple business rule keeps the focus on event contracts, eventual consistency, duplicate handling, and recoverable failure paths.
 
 ### Objectives
@@ -32,8 +30,6 @@ This project explores how to decouple HTTP request acceptance from background pr
 - **Outcome:** Documented asynchronous request lifecycle with queryable state and inspectable failure modes; **not a production deployment**.
 
 ## 2. Tech Stack
-
----
 
 ### Languages & Frameworks
 
