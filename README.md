@@ -1,6 +1,6 @@
 # Event-Driven Request Processing Platform
 
-**An independent AWS serverless proof of concept that accepts HTTP service requests, processes domain events asynchronously, and exposes persisted request state.**
+**An independent AWS serverless proof of concept that accepts service requests, processes domain events asynchronously, and exposes persisted request status.**
 
 ![Status: Proof of Concept](https://img.shields.io/badge/Status-Proof%20of%20Concept-blue)
 ![Type: Independent Engineering](https://img.shields.io/badge/Type-Independent%20Engineering-purple)
@@ -8,40 +8,39 @@
 **Project Type:** Independent Engineering / Architecture Project  
 **Status:** Proof of Concept  
 **My Role:** Architecture, Design & Implementation  
-**Repository:** **[TO CONFIRM — direct repository URL]**  
-**Live Demo:** **[TO CONFIRM — availability]**
-
----
+**Repository:** https://github.com/manuonsky/event-driven-request-processing-platform  
+**Live Demo:** **[TO CONFIRM]**
 
 ## 1. Overview
 
-This project demonstrates an event-driven request lifecycle on AWS. An HTTP API validates and persists a service request, publishes a `RequestCreated` event, and returns without waiting for downstream processing. A separate Lambda consumer updates the request state, which clients can retrieve through a status endpoint.
+---
 
-The business rule is intentionally simple. The engineering focus is on service boundaries, eventual consistency, non-atomic writes, duplicate events, and failure visibility—not on domain complexity. This is an independent reference implementation using synthetic data, **not a production system or a client implementation**.
+This project explores how to decouple HTTP request acceptance from background processing using AWS-managed services. An API Gateway HTTP API invokes Java Lambda functions to persist service requests in DynamoDB, publish `RequestCreated` events to EventBridge, and retrieve current request state. A separate Lambda processes routed events and stores a priority-based result. The deliberately simple business rule keeps the focus on event contracts, eventual consistency, duplicate handling, and recoverable failure paths.
 
 ### Objectives
 
-- Decouple synchronous API acceptance from asynchronous request processing.
-- Model request state transitions and make event-processing failures inspectable.
-- Define infrastructure as code and document architecture choices and their limitations.
+- Separate synchronous request acceptance from asynchronous processing.
+- Model request-state transitions, event routing, and visible failure conditions.
+- Define a reproducible serverless architecture using infrastructure as code.
 
 ### Key Highlights
 
-- **Architecture:** API Gateway HTTP API, three Java Lambda functions, DynamoDB, a custom EventBridge bus, and an SQS processing DLQ.
-- **Engineering:** Explicit API/event contracts, duplicate-event checks, and publication-failure state tracking.
-- **Security:** Resource-scoped, function-specific IAM permissions; the HTTP API is intentionally unauthenticated.
-- **Reliability:** Asynchronous Lambda retries, an SQS DLQ, and a synthetic processing-failure path.
-- **Outcome:** A documented implementation of request acceptance, state queries, asynchronous processing, and failure scenarios. No production or performance metrics are available.
-
----
+- **Architecture:** API Gateway HTTP API, three Java Lambda functions, DynamoDB, a custom EventBridge bus, and an SQS processing dead-letter queue (DLQ).
+- **Engineering:** Explicit `RequestCreated` contract, completed-state duplicate check, and publication-failure tracking.
+- **Security:** Function-specific, resource-scoped IAM permissions; the demonstration API is **unauthenticated**.
+- **Reliability:** Asynchronous Lambda retries, DLQ capture, and a synthetic processor-failure path.
+- **Outcome:** Documented asynchronous request lifecycle with queryable state and inspectable failure modes; **not a production deployment**.
 
 ## 2. Tech Stack
 
-### Languages & Build
+---
+
+### Languages & Frameworks
 
 ![Java 25](https://img.shields.io/badge/Java-25-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
 ![Jackson 3](https://img.shields.io/badge/Jackson-3-555555?style=for-the-badge)
-![Maven](https://img.shields.io/badge/Apache_Maven-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)
+
+The Lambda handlers use plain Java rather than an application framework.
 
 ### Cloud & Infrastructure
 
@@ -49,77 +48,78 @@ The business rule is intentionally simple. The engineering focus is on service b
 ![API Gateway](https://img.shields.io/badge/API_Gateway-FF4F8B?style=for-the-badge&logo=amazonapigateway&logoColor=white)
 ![AWS SAM](https://img.shields.io/badge/AWS_SAM-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
 ![CloudFormation](https://img.shields.io/badge/CloudFormation-8C4FFF?style=for-the-badge&logo=amazonaws&logoColor=white)
-![IAM](https://img.shields.io/badge/AWS_IAM-DD344C?style=for-the-badge&logo=amazonaws&logoColor=white)
+![AWS IAM](https://img.shields.io/badge/AWS_IAM-DD344C?style=for-the-badge&logo=amazonaws&logoColor=white)
 
-### Data & Messaging
+### Databases & Messaging
 
 ![DynamoDB](https://img.shields.io/badge/DynamoDB-4053D6?style=for-the-badge&logo=amazondynamodb&logoColor=white)
 ![EventBridge](https://img.shields.io/badge/EventBridge-F54589?style=for-the-badge&logo=amazonaws&logoColor=white)
 ![Amazon SQS](https://img.shields.io/badge/Amazon_SQS-FF4F8B?style=for-the-badge&logo=amazonsqs&logoColor=white)
 
-### Operations & Delivery
+### DevOps & Engineering Tools
 
+![Apache Maven](https://img.shields.io/badge/Apache_Maven-C71A36?style=for-the-badge&logo=apachemaven&logoColor=white)
 ![CloudWatch](https://img.shields.io/badge/CloudWatch-FF4F8B?style=for-the-badge&logo=amazoncloudwatch&logoColor=white)
-![AWS CLI](https://img.shields.io/badge/AWS_CLI-232F3E?style=for-the-badge&logo=amazonaws&logoColor=white)
 
 ### Technology Responsibilities
 
-| Technology | Responsibility |
-|---|---|
-| Java 25, Jackson 3 | Lambda request handlers and JSON deserialization |
-| Maven / Maven Wrapper | Dependency management and build |
-| API Gateway HTTP API | `POST /requests` and `GET /requests/{requestId}` |
-| AWS Lambda | Request submission, event processing, and state queries |
-| DynamoDB | Request records, status, results, and timestamps, keyed by `requestId` |
-| Amazon EventBridge | Custom event bus and `RequestCreated` routing rule |
-| Amazon SQS | Dead-letter queue for failed asynchronous processing invocations |
-| Amazon CloudWatch | Lambda operational logs |
-| AWS IAM | Permissions scoped to each function's resources and actions |
-| AWS SAM / CloudFormation | Infrastructure definition and CLI-based deployment |
-
----
+| Technology | Purpose in This Project |
+|------------|-------------------------|
+| Java 25, Jackson 3 | Implement Lambda handlers and JSON serialization/deserialization. |
+| Apache Maven / Maven Wrapper | Manage project build and dependencies. |
+| API Gateway HTTP API, AWS Lambda | Expose submission/query endpoints and execute asynchronous processing. |
+| DynamoDB | Store request attributes, timestamps, status, and results by `requestId`. |
+| Amazon EventBridge | Route `RequestCreated` events from a custom bus to the processor. |
+| Amazon SQS | Retain failed asynchronous processor invocations in a DLQ. |
+| AWS SAM, CloudFormation, IAM | Define cloud resources and function-specific permissions. |
+| Amazon CloudWatch | Store Lambda operational logs. |
 
 ## 3. Implemented Features
 
+---
+
 ### Core Functionality
 
-- [x] Validate `requesterId`, `requestType`, and `priority` on submission.
-- [x] Create `REQ-<uuid>` identifiers and timestamps; persist requests as `RECEIVED`.
-- [x] Publish `RequestCreated` to a custom EventBridge event bus.
-- [x] Process routed events asynchronously; persist `PROCESSING` and `COMPLETED` states and a result.
-- [x] Retrieve current request state by ID, including `404 Not Found` for unknown IDs.
+- [x] Validate `requesterId`, `requestType`, and `priority` for submissions.
+- [x] Generate `REQ-<uuid>` request IDs and timestamps; persist an initial `RECEIVED` state.
+- [x] Publish `RequestCreated` events to a custom EventBridge bus for asynchronous processing.
+- [x] Transition stored requests through `PROCESSING` and `COMPLETED`, with a priority-based result.
+- [x] Retrieve request state by ID and return `404 Not Found` for unknown requests.
 
 ### Engineering Capabilities
 
-- [x] Skip processing when a request is already `COMPLETED` (non-atomic duplicate-event check).
-- [x] Mark a persisted request `EVENT_PUBLISH_FAILED` if its event publication fails.
-- [x] Exercise processor exceptions with `requesterId = FAIL-TEST`, allowing Lambda retries and DLQ handling.
-- [x] Emit processing logs with request and correlation identifiers.
-- [x] Declare the AWS resources and function-specific IAM permissions through SAM.
+- [x] Skip event processing when the request is already marked `COMPLETED`.
+- [x] Record `EVENT_PUBLISH_FAILED` if event publication fails after the initial database write.
+- [x] Provide a synthetic failure trigger (`requesterId = FAIL-TEST`) to exercise processor retries and DLQ behavior.
+- [x] Emit structured processor logs with request and correlation identifiers.
+- [x] Define infrastructure and function-specific IAM permissions through AWS SAM.
 
-### Planned Enhancements — Not Implemented
+### Planned Enhancements
 
-Client-side idempotency, stronger publication guarantees, API authentication, automated tests, CI/CD, tracing, operational alarms, and automated recovery are **not part of the documented implementation**. See [Section 11](#11-limitations--future-improvements).
-
----
+- [ ] Add API authentication and application-level authorization.
+- [ ] Introduce client idempotency keys and concurrency-safe state transitions.
+- [ ] Strengthen publication guarantees (for example, with an outbox) and automate DLQ redrive/reconciliation.
+- [ ] Implement automated tests, CI/CD, distributed tracing, and operational alarms.
 
 ## 4. Solution Architecture
+
+---
 
 ### Architecture Diagram
 
 ```mermaid
 flowchart LR
-    Client["HTTP client"]
+    Client["HTTP Client"]
 
     subgraph AWS["AWS Cloud"]
         API["API Gateway<br/>HTTP API"]
-        Submit["SubmitRequestFunction<br/>Java Lambda"]
-        Query["GetRequestFunction<br/>Java Lambda"]
-        DB[("DynamoDB<br/>service-requests")]
-        Bus["EventBridge<br/>custom event bus"]
+        Submit["SubmitRequestFunction<br/>Lambda"]
+        Query["GetRequestFunction<br/>Lambda"]
+        DB[("DynamoDB<br/>ServiceRequestsTable")]
+        Bus["EventBridge<br/>Custom Event Bus"]
         Rule["RequestCreatedRule"]
-        Process["ProcessRequestFunction<br/>Java Lambda"]
-        DLQ["SQS<br/>processing DLQ"]
+        Process["ProcessRequestFunction<br/>Lambda"]
+        DLQ["SQS<br/>ProcessingDLQ"]
     end
 
     Client -->|"POST /requests"| API
@@ -128,93 +128,86 @@ flowchart LR
     API -->|"GET"| Query
     Submit -->|"PutItem: RECEIVED"| DB
     Submit -->|"PutEvents: RequestCreated"| Bus
-    Submit -.->|"Publication failure: UpdateItem EVENT_PUBLISH_FAILED"| DB
+    Submit -.->|"Publish failure: EVENT_PUBLISH_FAILED"| DB
     Bus --> Rule
     Rule -->|"Asynchronous invocation"| Process
-    Process -->|"GetItem / UpdateItem: PROCESSING, COMPLETED"| DB
+    Process -->|"GetItem / UpdateItem"| DB
     Process -.->|"Failed invocation after retries"| DLQ
     Query -->|"GetItem"| DB
 ```
 
-*Dashed arrows show failure handling, not the normal request path. The SQS DLQ is associated with failed **asynchronous Lambda processing invocations**, not EventBridge target-delivery failures.*
+*Dashed arrows represent failure paths. `ProcessingDLQ` captures failed asynchronous Lambda invocations; it does **not** cover EventBridge target-delivery failures.*
 
 ### Component Responsibilities
 
 | Component | Responsibility |
-|---|---|
-| `SubmitRequestFunction` | Validate input, persist the initial request, publish the domain event, and record publication failure |
-| `ServiceRequestsTable` (`service-requests`) | Store request attributes, status, result, and timestamps |
-| `ServiceRequestEventBus` and `RequestCreatedRule` | Match events by `source` and `detail-type`, then route them to the processor |
-| `ProcessRequestFunction` | Load current state, check completion, apply the priority rule, and update the request |
-| `GetRequestFunction` | Retrieve a request by `requestId` |
-| `ProcessingDLQ` (`service-request-processing-dlq`) | Retain failed asynchronous invocations after retries |
+|-----------|----------------|
+| `SubmitRequestFunction` | Validate input, write `RECEIVED` state, publish an event, and record publication failure. |
+| `ServiceRequestsTable` | Persist request metadata, state transitions, timestamps, and processing results. |
+| `ServiceRequestEventBus` / `RequestCreatedRule` | Match and route `RequestCreated` events to the processing Lambda. |
+| `ProcessRequestFunction` | Read state, skip already-completed requests, apply the processing rule, and update status. |
+| `GetRequestFunction` | Return the latest stored request state by ID. |
+| `ProcessingDLQ` | Retain failed asynchronous processor invocations for inspection and manual recovery. |
 
 ### Request / Processing Flow
 
-1. `POST /requests` validates the payload, creates a `REQ-<uuid>` ID, and writes a `RECEIVED` record to DynamoDB.
-2. The submit handler calls EventBridge `PutEvents`. Successful acceptance returns **`202 Accepted`**, which does not imply that processing has completed.
-3. The EventBridge rule routes `RequestCreated` to the processing Lambda asynchronously.
-4. The processor reads the record, skips one already marked `COMPLETED`, or transitions it through `PROCESSING` to `COMPLETED` and writes the result.
-5. `GET /requests/{requestId}` reads the latest stored representation. If event publication fails, the submit handler records `EVENT_PUBLISH_FAILED`; an unhandled processing failure is eligible for asynchronous retries and eventual DLQ delivery.
+1. `POST /requests` validates `requesterId`, `requestType`, and `priority`; the submission Lambda creates a `REQ-<uuid>` record with `RECEIVED` status in DynamoDB.
+2. The submission Lambda publishes `RequestCreated` to EventBridge. On successful acceptance, the API responds with **`202 Accepted`**; processing may still be pending.
+3. An EventBridge rule routes the event to `ProcessRequestFunction`. The processor reads the record, skips requests already in `COMPLETED`, or updates the state through `PROCESSING` to `COMPLETED`.
+4. `GET /requests/{requestId}` reads DynamoDB and returns the latest persisted status and result; it returns **`404 Not Found`** for an unknown ID.
+5. If publication fails, the request can be marked `EVENT_PUBLISH_FAILED`. Processing errors trigger asynchronous Lambda retries and can lead to the SQS DLQ; a request may remain in `PROCESSING` until manually recovered.
 
-**State model:** `RECEIVED → PROCESSING → COMPLETED`. A publication failure can result in `EVENT_PUBLISH_FAILED`. A processing failure may leave the record in `PROCESSING` until manually recovered.
+**Processing rule:** `LOW` priority produces `AUTO_COMPLETED`; `MEDIUM` and `HIGH` produce `MANUAL_REVIEW`. Both results are stored with final status `COMPLETED`.
 
-**Demonstration business rule:**
-
-| Priority | Processing result |
-|---|---|
-| `LOW` | `AUTO_COMPLETED` |
-| `MEDIUM` | `MANUAL_REVIEW` |
-| `HIGH` | `MANUAL_REVIEW` |
-
----
+**Event contract:** `source = portfolio.service-request`, `detail-type = RequestCreated`. The event detail includes `requestId`, `requesterId`, `requestType`, `priority`, and `correlationId`; in this PoC, `correlationId` equals `requestId`.
 
 ## 5. Key Architecture & Engineering Decisions
 
-| Decision | Rationale and trade-off |
-|---|---|
-| **EventBridge instead of direct invocation or queue-only routing** | Decouples producer and consumer and allows content-based routing and potential additional consumers. Introduces eventual consistency, duplicate-delivery concerns, and operational complexity. An EventBridge → SQS → consumer buffering stage is **not implemented**. |
-| **Plain Java Lambda handlers without Spring Boot** | Keeps the demonstration explicit and avoids framework startup/context overhead. The design is intended for short-running handlers, not long-lived workloads that might warrant containers. |
-| **DynamoDB with `requestId` as key** | Supports the point-lookup status-query access pattern. It does not provide a transaction across persistence and EventBridge publication. |
-| **AWS SAM / CloudFormation** | Captures AWS resources and IAM configuration in reviewable infrastructure code. Deployment is CLI-driven; no CI/CD pipeline is documented. |
+---
+
+| Decision | Rationale / Trade-off |
+|----------|------------------------|
+| **EventBridge for event routing** | Separates request submission from processing and supports rule-based filtering; introduces eventual consistency and potential duplicate delivery. There is no intermediary buffering queue between EventBridge and the processor. |
+| **Plain Java Lambda handlers** | Keep handlers lightweight without Spring Boot startup overhead; processing remains bounded by Lambda execution constraints. |
+| **DynamoDB keyed by `requestId`** | Enables direct status queries; a database write and an EventBridge publication cannot be committed atomically in this design. |
+| **AWS SAM / CloudFormation** | Keeps cloud resources and IAM policies declarative and reviewable; deployment is CLI-driven rather than CI/CD-managed. |
 
 ### Technical Challenges
 
-**Non-atomic persistence and event publication**
+**Challenge 1: Non-atomic database write and event publication**
 
-- **Context:** DynamoDB `PutItem` and EventBridge `PutEvents` are separate operations. Persistence can succeed while event publication fails.
-- **Implemented approach:** Detect the publication failure and update the request to `EVENT_PUBLISH_FAILED`.
-- **Boundary:** The failure is visible but not automatically reconciled. No transactional outbox, atomic delivery guarantee, or recovery worker is implemented.
+- **Context:** Persisting the initial request and calling EventBridge `PutEvents` are separate operations, so a request may be stored without a corresponding event.
+- **Approach:** Set request status to `EVENT_PUBLISH_FAILED` when publication fails after persistence.
+- **Result:** The failure is visible in the stored state, but the design does not provide atomic publication or automated reconciliation.
 
-**At-least-once processing and failed invocations**
+**Challenge 2: Duplicate events and failed asynchronous processing**
 
-- **Context:** A delivered event may be duplicated, and a processor exception must not be mistaken for completion.
-- **Implemented approach:** Check for an existing `COMPLETED` state, inject a failure through `FAIL-TEST`, and use asynchronous Lambda retries with an SQS DLQ.
-- **Boundary:** The read-then-update check is **not concurrency-safe idempotency**; the DLQ provides an inspection point, not automatic redrive or record reconciliation.
-
-For the event-routing rationale, see [ADR-001 — EventBridge selection](docs/decisions/ADR-001-eventbridge.md).
-
----
+- **Context:** Events can be delivered more than once, and a processor failure can interrupt a state transition.
+- **Approach:** Check for `COMPLETED` before processing; use asynchronous Lambda retries and an SQS DLQ, with `FAIL-TEST` as a synthetic failure trigger.
+- **Result:** Completed requests can be skipped and failed invocations retained for inspection. The state check is **not atomic idempotency**; redrive and state recovery remain manual.
 
 ## 6. Security, Reliability & Observability
 
+---
+
 ### Security
 
-- **Scoped IAM:** Submission uses DynamoDB `PutItem`/`UpdateItem` and EventBridge `PutEvents`; processing uses DynamoDB `GetItem`/`UpdateItem` and SQS `SendMessage`; querying uses DynamoDB `GetItem`. The documented policies target the relevant table, event bus, and DLQ.
-- **Explicit boundary:** The HTTP API is **unauthenticated** and uses synthetic data. Application authentication, authorization, data masking, and audit controls are not documented.
+- **Implemented:** Function-specific, resource-scoped IAM permissions for required DynamoDB, EventBridge, and SQS operations.
+- **Known limitation:** The demonstration HTTP API has **no authentication**; application-level authorization and audit controls are not documented.
+- **Configuration and data protection:** Secrets-management arrangements and explicit data-protection settings are **[TO CONFIRM]**. Do not commit AWS credentials or secrets.
 
 ### Reliability
 
-- Asynchronous Lambda retries and an SQS DLQ provide a failure-inspection path.
-- `EVENT_PUBLISH_FAILED` identifies a failed publication after persistence, but does not close the dual-write consistency gap.
-- A completed-state check avoids some duplicate work; concurrent deliveries and retried client submissions are not fully idempotent.
-- No automated DLQ redrive or reconciliation mechanism is documented.
+- **Failure visibility:** `EVENT_PUBLISH_FAILED` records a failed publish after persistence; synthetic processor failures expose retry/DLQ behavior.
+- **Retry and recovery:** Asynchronous Lambda retries and `ProcessingDLQ` are part of the design. Automated DLQ redrive and state reconciliation are not implemented/documented.
+- **Consistency:** Request queries reflect persisted state; there is no transactional outbox, concurrency-safe idempotency, or end-to-end exactly-once guarantee.
 
 ### Observability
 
-- CloudWatch captures Lambda operational logs. The processing handler emits structured entries with fields such as `requestId`, `requesterId`, `correlationId`, `eventType`, `status`, and `result` when applicable.
-- This PoC sets `correlationId = requestId` in its event detail.
-- Dashboards, alarms, custom application metrics, and distributed tracing are **not documented**.
+- **Logging:** CloudWatch Lambda logs include structured processor fields such as `requestId`, `correlationId`, `eventType`, `status`, and `result` where applicable.
+- **Not documented:** Custom metrics, dashboards, operational alarms, and distributed tracing.
+
+Inspect processor logs with the AWS SAM CLI:
 
 ```powershell
 sam logs --name ProcessRequestFunction `
@@ -224,20 +217,23 @@ sam logs --name ProcessRequestFunction `
 
 ### Non-Functional Considerations
 
-- **Scalability:** Stateless Lambda handlers and managed services provide a serverless scaling model; no load, concurrency, or capacity validation is supplied.
-- **Consistency:** Clients can observe intermediate status while asynchronous work is in progress.
-- **Availability / performance / cost:** No SLOs, uptime measurements, latency or throughput benchmarks, or cost results are documented. Managed services alone do not establish production readiness.
-
----
+- **Performance:** Latency, throughput, and load-test measurements are **[TO CONFIRM]**.
+- **Scalability:** Stateless handlers and managed AWS services provide a serverless scaling model; service limits, contention, and backpressure have not been evaluated in the supplied documentation.
+- **Availability:** No production service-level objective, availability measurement, or recovery-time target is documented (**[TO CONFIRM]**).
+- **Cost:** Cloud cost estimates and measured operating costs are **[TO CONFIRM]**.
 
 ## 7. API / Interface Documentation
 
-| Method | Endpoint | Purpose | Documented responses |
-|---|---|---|---|
-| `POST` | `/requests` | Validate, persist, and publish a service request | `202 Accepted`; `400 Bad Request` for invalid input |
-| `GET` | `/requests/{requestId}` | Return the latest stored request state | `200 OK`; `404 Not Found` for an unknown ID |
+---
 
-### Submit Request
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `POST` | `/requests` | Accept a service request (`202 Accepted`; invalid input: `400 Bad Request`). |
+| `GET` | `/requests/{requestId}` | Retrieve persisted status (`200 OK`; unknown ID: `404 Not Found`). |
+
+### Example Request / Response
+
+**Example submission:**
 
 ```http
 POST /requests
@@ -252,7 +248,7 @@ Content-Type: application/json
 }
 ```
 
-Valid `requestType` values: `STANDARD`, `EXPRESS`. Valid `priority` values: `LOW`, `MEDIUM`, `HIGH`.
+Supported `requestType` values: `STANDARD`, `EXPRESS`. Supported `priority` values: `LOW`, `MEDIUM`, `HIGH`.
 
 **Example `202 Accepted` response:**
 
@@ -264,13 +260,7 @@ Valid `requestType` values: `STANDARD`, `EXPRESS`. Valid `priority` values: `LOW
 }
 ```
 
-### Query Request Status
-
-```http
-GET /requests/REQ-e638721d-b63c-455b-b1e1-635152ef1452
-```
-
-**Example `200 OK` response after completion:**
+**Example `GET /requests/{requestId}` response after processing:**
 
 ```json
 {
@@ -285,63 +275,47 @@ GET /requests/REQ-e638721d-b63c-455b-b1e1-635152ef1452
 }
 ```
 
-### Published Domain Event
-
-The EventBridge envelope uses `source = portfolio.service-request` and `detail-type = RequestCreated`. In this PoC, `correlationId` is the same as `requestId`.
-
-```json
-{
-  "source": "portfolio.service-request",
-  "detail-type": "RequestCreated",
-  "detail": {
-    "requestId": "REQ-e638721d-b63c-455b-b1e1-635152ef1452",
-    "requesterId": "USER-10001",
-    "requestType": "STANDARD",
-    "priority": "MEDIUM",
-    "correlationId": "REQ-e638721d-b63c-455b-b1e1-635152ef1452"
-  }
-}
-```
-
-**OpenAPI specification / Postman collection:** **[TO CONFIRM — no link supplied]**.
-
----
+**API Documentation:** Published OpenAPI/Swagger or Postman reference **[TO CONFIRM]**.
 
 ## 8. Getting Started
+
+---
 
 ### Prerequisites
 
 - Java 25 and Maven (or the included Maven Wrapper).
 - AWS CLI and AWS SAM CLI.
-- AWS credentials configured for an account in which the stack can be deployed.
+- AWS credentials configured with permissions to deploy the defined resources.
 
-### Installation and Configuration
+### Installation
 
-**Repository clone URL:** **[TO CONFIRM]**. Once available, clone the repository and open the `event-driven-request-processing` directory.
+```bash
+git clone https://github.com/manuonsky/event-driven-request-processing-platform.git
+cd event-driven-request-processing-platform
+```
 
-Infrastructure is declared in [`template.yaml`](template.yaml), with deployment configuration documented in [`samconfig.toml`](samconfig.toml). Verify the active AWS identity:
+### Configuration
+
+The repository documents an AWS SAM template (`template.yaml`) and SAM configuration (`samconfig.toml`). Configure AWS credentials locally and review the SAM deployment configuration before deploying. Additional environment variables, parameters, and configuration requirements are **[TO CONFIRM]**. Never commit credentials, tokens, or production secrets.
+
+### Running Locally
+
+Local Lambda invocation, event fixtures, or a local service-emulation workflow are **[TO CONFIRM]**. The documented build and deployment procedure below targets AWS; it is not a verified local end-to-end run procedure.
+
+### Deployment
+
+From the repository directory, validate credentials and deploy the SAM stack:
 
 ```powershell
 aws sts get-caller-identity
-```
-
-**Additional deployment parameters or environment variables:** **[TO CONFIRM — none specified in the supplied project documentation]**. Do not commit AWS credentials or secrets.
-
-### Build and AWS Deployment
-
-```powershell
 sam validate
 sam build
 sam deploy --guided
 ```
 
-Use `event-driven-request-processing` as the suggested CloudFormation stack name. For subsequent deployments using saved SAM configuration:
+Use `event-driven-request-processing` as the suggested stack name. Subsequent deployments can use `sam deploy` with saved SAM configuration.
 
-```powershell
-sam deploy
-```
-
-Retrieve the API endpoint from the stack's `ApiUrl` output:
+Retrieve the deployed API URL from the CloudFormation stack output:
 
 ```powershell
 aws cloudformation describe-stacks `
@@ -350,90 +324,55 @@ aws cloudformation describe-stacks `
   --output text
 ```
 
-**Local Lambda execution procedure:** **[TO CONFIRM — no verified local run instructions supplied]**. The documented workflow deploys to AWS.
-
----
+These are documented deployment instructions; a deployment execution record was not provided.
 
 ## 9. Testing & Validation
 
-### Documented Validation Scenarios
-
-The following are **expected behaviors from the project documentation**, not evidence of independently executed or automated tests.
-
-| Scenario | Input / condition | Expected behavior |
-|---|---|---|
-| Low priority | `STANDARD`, `LOW` | `COMPLETED`, `AUTO_COMPLETED` |
-| Medium priority | `STANDARD`, `MEDIUM` | `COMPLETED`, `MANUAL_REVIEW` |
-| High priority | `EXPRESS`, `HIGH` | `COMPLETED`, `MANUAL_REVIEW` |
-| Invalid submission | Missing `requestType` or `priority` | `400 Bad Request` |
-| Missing record | Unknown `requestId` | `404 Not Found` |
-| Synthetic processor failure | `requesterId = FAIL-TEST` | Request accepted; processor fails after `PROCESSING`; retries and then DLQ |
-| Duplicate event | Stored state already `COMPLETED` | Processing skipped |
-
-### API Smoke Test (PowerShell)
-
-Replace the placeholder with the `ApiUrl` returned by CloudFormation:
-
-```powershell
-$API_URL = "https://<api-id>.execute-api.<region>.amazonaws.com"
-$body = @{
-    requesterId = "USER-LOW"
-    requestType = "STANDARD"
-    priority = "LOW"
-} | ConvertTo-Json
-
-$response = Invoke-RestMethod -Method Post -Uri "$API_URL/requests" `
-  -ContentType "application/json" -Body $body
-$response
-
-# Asynchronous processing may not be finished yet; query again if needed.
-Invoke-RestMethod -Method Get -Uri "$API_URL/requests/$($response.requestId)"
-```
-
-**Automated unit, integration, API/event-contract, and performance tests; execution reports:** **[TO CONFIRM — no suites or results provided]**.
-
 ---
+
+### Testing Approach
+
+- **Unit Tests:** Test implementation and framework **[TO CONFIRM]**.
+- **Integration Tests:** Automated integration coverage **[TO CONFIRM]**.
+- **API Tests:** Request/response contracts are documented; recorded execution evidence **[TO CONFIRM]**.
+- **Performance Tests:** Load-test methodology and results **[TO CONFIRM]**.
+- **Failure Scenarios:** The design includes `FAIL-TEST` processing failures, duplicate-completion checks, and publication-failure state tracking; executed test evidence **[TO CONFIRM]**.
+
+### Validation Results
+
+The entries below are **documented expected behaviors, not independently verified test results**.
+
+| Scenario | Result |
+|----------|--------|
+| Submit `LOW` priority | Expected: `COMPLETED` / `AUTO_COMPLETED`. |
+| Submit `MEDIUM` or `HIGH` priority | Expected: `COMPLETED` / `MANUAL_REVIEW`. |
+| Invalid request / unknown request ID | Expected: `400 Bad Request` / `404 Not Found`. |
+| Submit `requesterId = FAIL-TEST` | Expected: failure after `PROCESSING`, asynchronous retries, and eventual DLQ handling. |
+| Redeliver an event for a completed request | Expected: processor skips further work. |
+| Event publication fails after persistence | Expected: stored status `EVENT_PUBLISH_FAILED`. |
+
+**Test Evidence:** Automated test reports, CI runs, or recorded validation output **[TO CONFIRM]**.
 
 ## 10. Demonstration & Results
 
-### Demonstrable Technical Outcomes
-
-- **Asynchronous API boundary:** `POST /requests` returns `202 Accepted` with `RECEIVED` without waiting for the processor.
-- **Persisted state:** Subsequent queries can return intermediate state and the eventual priority-based result.
-- **Failure visibility:** A publication failure is represented by `EVENT_PUBLISH_FAILED` rather than silently remaining `RECEIVED`.
-- **Failure-path exercise:** `FAIL-TEST` triggers a processor exception after the `PROCESSING` update, enabling inspection of retry/DLQ behavior.
-
-These are **documented capabilities and expected demonstrations**, not measured service-level results or proof of production operation.
-
-**Screenshots, recording, deployment outputs, or executed test evidence:** **[TO CONFIRM]**.  
-**Measured latency, throughput, error rate, availability, or cost:** **[TO CONFIRM — not provided]**.
-
 ---
 
-## 11. Limitations & Future Improvements
+### Screenshots / Demo
 
-### Current Limitations
+Live demo, screenshots, and recorded validation artifacts are **[TO CONFIRM]**. The documented demonstration scenarios are request submission, asynchronous status retrieval, priority-based results, and synthetic failure/DLQ inspection.
 
-- The HTTP API has no authentication/authorization or client-provided idempotency key.
-- DynamoDB persistence and EventBridge publication are non-atomic; no outbox or publication reconciler is implemented.
-- The completed-state check does not enforce concurrency-safe or exactly-once processing.
-- Failed processing may leave a record at `PROCESSING`; the DLQ requires manual operational recovery.
-- Automated testing, CI/CD, tracing, dashboards, alarms, metrics-based monitoring, and DLQ redrive are not documented.
-- No event schema versioning, multi-region recovery design, quantified non-functional targets, or production-readiness evidence is provided.
+### Demonstrated Outcomes
 
-### Planned Improvements — Not Implemented
+- **Functional:** Documented `202 Accepted` submission, persisted status retrieval, and priority-based completion outcomes.
+- **Engineering:** Documented handling for publish failure, completed-request redelivery, and failed processor invocations.
+- **Architecture:** An independently designed event-driven, serverless PoC with SAM-defined infrastructure and explicit eventual-consistency trade-offs.
+- **Performance:** Measured latency, throughput, availability, or cost results **[TO CONFIRM]**.
 
-- [ ] Add client idempotency keys and concurrency-safe conditional state transitions.
-- [ ] Evaluate a transactional outbox or DynamoDB Streams-based publication/reconciliation approach.
-- [ ] Add API authentication/authorization and define data retention, masking, and audit requirements where applicable.
-- [ ] Define event schema ownership, versioning, and compatibility rules.
-- [ ] Add unit, integration, API/event-contract, duplicate-delivery, and failure-injection test automation.
-- [ ] Add CloudWatch application metrics, alarms, DLQ monitoring, dashboards, tracing, and SLI/SLO definitions.
-- [ ] Automate build/test/deployment through CI/CD and implement documented DLQ recovery/redrive procedures.
+These capabilities are described in the supplied project README; source code, deployment records, and independently verified execution evidence were not supplied. No production deployment or quantified business benefit is claimed.
+
+## 11. Repository Structure
 
 ---
-
-## 12. Repository Structure
 
 ```text
 event-driven-request-processing/
@@ -455,23 +394,4 @@ event-driven-request-processing/
         └── ADR-001-eventbridge.md
 ```
 
-*Directory structure is reproduced from the supplied project README. Source files and infrastructure definitions were not provided for independent inspection.*
-
----
-
-## 13. Engineering Notes & References
-
-- [ADR-001 — EventBridge selection](docs/decisions/ADR-001-eventbridge.md)
-- [AWS SAM infrastructure template](template.yaml)
-- [SAM deployment configuration](samconfig.toml)
-- [Maven project configuration](pom.xml)
-- **Verification scope:** Technical claims and examples are derived from the supplied README, not independently checked against source code, deployments, or test reports.
-- **Project context:** Independent, hands-on solution architecture and engineering work with a synthetic domain; no employer/client implementation or production experience is implied.
-
-**Developed by:** Manoj Parambil  
-**Professional focus:** Solution architecture with hands-on engineering  
-**Portfolio:** https://manuonsky.com  
-**LinkedIn:** https://www.linkedin.com/in/manoj-parambil/  
-**GitHub:** https://github.com/manuonsky  
-**Direct project repository:** **[TO CONFIRM]**  
-**License:** **[TO CONFIRM]**
+*Repository structure is transcribed from the supplied README and has not been independently verified against project source files.*
